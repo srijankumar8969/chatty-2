@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: chatty
+    env: node
+    plan: free
+    branch: main
+    buildCommand: npm run build
+    startCommand: npm run start --prefix backend
+    autoDeploy: true
+    healthCheckPath: /
