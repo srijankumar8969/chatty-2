@@ -1,11 +1,13 @@
 import express from "express";
-import { checkAuth, login, logout, signup, updateProfile, updateUserAvatar } from "../controllers/auth.controller.js";
+import { checkAuth, login, logout, signup, updateProfile, updateUserAvatar, verifyOtp, resendOtp } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import { upload } from "../middleware/multer.middleware.js";
 const router = express.Router();
 
 router.post("/signup", signup);
 router.post("/login", login);
+router.post("/verify-otp", verifyOtp);
+router.post("/resend-otp", resendOtp);
 router.post("/logout", logout);
 
 router.put("/update-profile", protectRoute, updateProfile);

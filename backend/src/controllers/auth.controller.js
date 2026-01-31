@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { generateToken } from '../utils/utils.utils.js';
 import cloudinary from "../lib/cloudinary.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../lib/cloudinary.js";
+import { sendMail } from "../lib/mailer.js";
 
 
 export const signup = async (req, res) => {
@@ -26,27 +27,50 @@ export const signup = async (req, res) => {
         const user = await User.findOne({ email });
         if (user) {
             return res.status(400).send('Email already exists');
-        }//later we will do a redirection to the login page
-        const salt = await bcrypt.genSalt(10); // Add await
-        const hash = await bcrypt.hash(password, salt); // Add await
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
         const newUser = new User({
             email,
             password: hash,
             userName
         });
-        console.log('New user created', newUser);
-        if (newUser) {
-            await newUser.save();
-            generateToken(newUser._id, res);
-            res.status(201).json({
-                _id: newUser._id,
-                email: newUser.email,
-                userName: newUser.userName
+
+        if (!newUser) {
+            return res.status(400).send('Invalid user data');
+        }
+
+        await newUser.save();
+
+        // Generate OTP for signup verification
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpSalt = await bcrypt.genSalt(10);
+        const otpHash = await bcrypt.hash(otp, otpSalt);
+
+        newUser.otp = otpHash;
+        newUser.otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+        await newUser.save();
+
+        try {
+            await sendMail({
+                to: newUser.email,
+                subject: 'Verify your Chatty account',
+                text: `Your OTP for Chatty signup is: ${otp}. It will expire in 5 minutes.`,
+                html: `<p>Your OTP for Chatty signup is: <strong>${otp}</strong>. It will expire in 5 minutes.</p>`,
             });
+        } catch (err) {
+            console.log('Error sending signup OTP email', err);
+            // In development allow testing without SMTP by logging/returning the OTP
+            if (process.env.NODE_ENV !== 'production') {
+                console.log(`Dev OTP for ${newUser.email}: ${otp}`);
+                return res.status(201).json({ otpSent: true, email: newUser.email, message: 'OTP logged (dev)', otpDev: otp });
+            }
+            return res.status(500).send('Failed to send OTP email');
         }
-        else {
-            res.status(400).send('Invalid user data');
-        }
+
+        // Return response indicating OTP step required. Do NOT create session yet.
+        res.status(201).json({ otpSent: true, email: newUser.email, message: 'OTP sent to your email' });
     } catch (error) {
         console.log('Error in signup controller', error.message);
         res.status(500).send('Internal Server Error');
@@ -65,12 +89,35 @@ export const login = async (req, res) => {
         if (!passwordCheck) {
             return res.status(400).send('Invalid credentials');
         }
-        generateToken(user._id, res);
-        res.status(200).json({
-            _id: user._id,
-            email: user.email,
-            userName: user.userName
-        });
+
+        // Generate a 6-digit OTP and store hash + expiry
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const salt = await bcrypt.genSalt(10);
+        const otpHash = await bcrypt.hash(otp, salt);
+
+        user.otp = otpHash;
+        user.otpExpires = Date.now() + 5 * 60 * 1000; // OTP valid for 5 minutes
+        await user.save();
+
+        // send OTP to user's email
+        try {
+            await sendMail({
+                to: user.email,
+                subject: 'Your Chatty login OTP',
+                text: `Your OTP for Chatty login is: ${otp}. It will expire in 5 minutes.`,
+                html: `<p>Your OTP for Chatty login is: <strong>${otp}</strong>. It will expire in 5 minutes.</p>`,
+            });
+        } catch (err) {
+            console.log('Error sending OTP email', err);
+            if (process.env.NODE_ENV !== 'production') {
+                console.log(`Dev OTP for ${user.email}: ${otp}`);
+                return res.status(200).json({ otpSent: true, message: 'OTP logged (dev)', otpDev: otp });
+            }
+            return res.status(500).send('Failed to send OTP email');
+        }
+
+        // Don't create a session yet. Client must verify OTP.
+        res.status(200).json({ otpSent: true, message: 'OTP sent to registered email' });
 
     } catch (error) {
         console.log('Error in login controller', error.message);
@@ -118,6 +165,78 @@ export const updateProfile = async (req, res) => {
     }
 };
 
+
+export const verifyOtp = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) return res.status(400).send('Email and OTP are required');
+
+        const user = await User.findOne({ email });
+        if (!user || !user.otp) return res.status(400).send('No OTP request found for this user');
+
+        if (user.otpExpires < Date.now()) {
+            return res.status(400).send('OTP expired');
+        }
+
+        const isMatch = await bcrypt.compare(otp, user.otp);
+        if (!isMatch) {
+            return res.status(400).send('Wrong OTP');
+        }
+
+        // OTP correct - clear otp fields and generate session
+        user.otp = null;
+        user.otpExpires = null;
+        await user.save();
+
+        generateToken(user._id, res);
+        res.status(200).json({ _id: user._id, email: user.email, userName: user.userName });
+
+    } catch (error) {
+        console.log('Error in verifyOtp controller', error.message);
+        res.status(500).send('Internal Server Error');
+    }
+};
+
+export const resendOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).send('Email is required');
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(400).send('User not found');
+
+        // generate OTP again
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const salt = await bcrypt.genSalt(10);
+        const otpHash = await bcrypt.hash(otp, salt);
+
+        user.otp = otpHash;
+        user.otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+        await user.save();
+
+        try {
+            await sendMail({
+                to: user.email,
+                subject: 'Your Chatty login OTP (resend)',
+                text: `Your OTP for Chatty login is: ${otp}. It will expire in 5 minutes.`,
+                html: `<p>Your OTP for Chatty login is: <strong>${otp}</strong>. It will expire in 5 minutes.</p>`,
+            });
+        } catch (err) {
+            console.log('Error sending OTP email', err);
+            if (process.env.NODE_ENV !== 'production') {
+                console.log(`Dev OTP for ${user.email}: ${otp}`);
+                return res.status(200).json({ otpSent: true, message: 'OTP logged (dev)', otpDev: otp });
+            }
+            return res.status(500).send('Failed to send OTP email');
+        }
+
+        res.status(200).json({ otpSent: true, message: 'OTP resent to registered email' });
+
+    } catch (error) {
+        console.log('Error in resendOtp controller', error.message);
+        res.status(500).send('Internal Server Error');
+    }
+};
 
 export const checkAuth = (req, res) => {
     try {

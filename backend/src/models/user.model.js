@@ -18,6 +18,15 @@ const mongoSchema = new mongoose.Schema({
     profilePic: {
         type: String,
         default: ""
+    },
+    // OTP fields for login verification
+    otp: {
+        type: String,
+        default: null
+    },
+    otpExpires: {
+        type: Date,
+        default: null
     }
 },
     {
