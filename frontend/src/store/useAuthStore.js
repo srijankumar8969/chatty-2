@@ -34,7 +34,7 @@ export const useAuthStore = create((set, get) => ({ //create is  used to create 
     try {
       const res = await axiosInstance.post(`/auth/signup`, {
         userName,
-        email, 
+        email,
         password
       });
       set({ authUser: res.data });
@@ -89,20 +89,35 @@ export const useAuthStore = create((set, get) => ({ //create is  used to create 
     }
   },
 
-updateProfilepic: async (data) => {
+  updateProfilepic: async (data) => {
+    set({ isUpdatingProfile: true });
+    try {
+      let res;
 
-set({ isUpdatingProfile: true });
-console.log(data);
-try {
-  const res = await axiosInstance.patch("/upload-avatar", data);
-  set({ authUser: res.data });
-  toast.success("Profile updated successfully");
-} catch (error) {
-  console.log("error in update profile:", error);
-  toast.error(error.response.data.message);
-} finally {
-  set({ isUpdatingProfile: false });
-}
+      // If the payload contains a base64 'profilePic' string, use the JSON PUT endpoint
+      if (typeof data?.profilePic === "string") {
+        res = await axiosInstance.put("/auth/update-profile", { profilePic: data.profilePic });
+      } else {
+        // Assume FormData/file upload and send multipart to upload-avatar
+        const form = data instanceof FormData ? data : new FormData();
+        // If caller passed a File object as `file` or `avatar`, append it
+        if (!form.has("avatar")) {
+          if (data?.file) form.append("avatar", data.file);
+          else if (data?.avatar) form.append("avatar", data.avatar);
+        }
+        res = await axiosInstance.patch("/auth/upload-avatar", form, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
+
+      set({ authUser: res.data });
+      toast.success("Profile updated successfully");
+    } catch (error) {
+      console.log("error in update profile:", error);
+      toast.error(error.response?.data?.message || "Error updating profile");
+    } finally {
+      set({ isUpdatingProfile: false });
+    }
   },
 
   connectSocket: () => {

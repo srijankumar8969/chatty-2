@@ -7,4 +7,3 @@ export const connectDB= async()=>{
         console.log(`Error occured while making connection to mongodb ${error}`);
     }
 };
-//we create a function called connection which is an async function and whenever it is called a connection is made to the mongodb database;

@@ -10,7 +10,6 @@ router.post("/logout", logout);
 
 router.put("/update-profile", protectRoute, updateProfile);
 
-//upload routes
 
 router.patch("/upload-avatar",
     protectRoute,
