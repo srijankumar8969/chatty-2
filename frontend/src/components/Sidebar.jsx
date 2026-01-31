@@ -85,13 +85,22 @@ const Sidebar = () => {
               )}
             </div>
 
-            {/* User info (always visible) */}
+            {/* User info */}
             <div className="flex flex-col items-center lg:items-start min-w-0">
-              <div className="font-medium truncate text-xs lg:text-base">
+              <div
+                className="
+                  font-medium
+                  text-xs lg:text-base
+                  text-center lg:text-left
+                  whitespace-normal
+                  break-words
+                  leading-tight
+                "
+              >
                 {authUser._id === user._id ? "You" : user.userName}
               </div>
 
-              {/* Status only on large screens */}
+              {/* Status (desktop only) */}
               <div className="hidden lg:block text-sm text-zinc-400">
                 {onlineUsers.includes(user._id) ? "Online" : "Offline"}
               </div>
