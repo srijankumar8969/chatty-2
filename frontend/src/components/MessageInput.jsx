@@ -88,11 +88,12 @@ const MessageInput = () => {
 
           <button
             type="button"
-            className={`hidden sm:flex btn btn-circle
+            className={`flex items-center justify-center btn btn-circle p-0 h-8 w-8 sm:h-10 sm:w-10
                      ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+            aria-label="Attach image"
             onClick={() => fileInputRef.current?.click()}
           >
-            <Image size={20} />
+            <Image size={16} />
           </button>
         </div>
         <button
