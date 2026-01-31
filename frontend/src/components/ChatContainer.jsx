@@ -66,10 +66,27 @@ const ChatContainer = () => {
                 />
               </div>
             </div>
-            <div className="chat-header mb-1">
+            <div className="chat-header mb-1 flex items-center justify-between">
               <time className="text-xs opacity-50 ml-1">
                 {formatMessageTime(message.createdAt)}
               </time>
+              {message.senderId === authUser._id && (
+                <button
+                  className="text-sm opacity-60 hover:opacity-100"
+                  title="Delete message"
+                  onClick={async () => {
+                    const confirmDelete = window.confirm("Delete this message? This cannot be undone.");
+                    if (!confirmDelete) return;
+                    try {
+                      await useChatStore.getState().deleteMessage(message._id);
+                    } catch (err) {
+                      console.log("Error deleting message", err);
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              )}
             </div>
             <div className="chat-bubble flex flex-col">
               {message.image && (

@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, Trash } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 
@@ -26,10 +26,28 @@ const ChatHeader = () => {
           </div>
         </div>
 
-        {/* Close button */}
-        <button onClick={() => setSelectedUser(null)}>
-          <X />
-        </button>
+        {/* Actions */}
+        <div className="flex items-center gap-3">
+          <button
+            title="Delete conversation"
+            onClick={async () => {
+              if (!selectedUser) return;
+              const confirmDelete = window.confirm(`Delete conversation with ${selectedUser.userName}? This will remove messages for both users.`);
+              if (!confirmDelete) return;
+              try {
+                await useChatStore.getState().deleteChat(selectedUser._id);
+              } catch (err) {
+                console.log('Error deleting conversation', err);
+              }
+            }}
+          >
+            <Trash />
+          </button>
+
+          <button onClick={() => setSelectedUser(null)}>
+            <X />
+          </button>
+        </div>
       </div>
     </div>
   );

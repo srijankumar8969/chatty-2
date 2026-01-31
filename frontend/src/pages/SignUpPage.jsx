@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore.js";
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthImagePattern from "../components/AuthImagePattern";
 import toast from "react-hot-toast";
 
 const SignUpPage = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     userName: "",
@@ -13,7 +14,7 @@ const SignUpPage = () => {
     password: "",
   });
 
-  const { signup, isSigningUp } = useAuthStore();
+  const { signup, isSigningUp, pendingOtpEmail } = useAuthStore();
 
   const validateForm = () => {
     if (!formData.userName.trim()) return toast.error("Full name is required");
@@ -25,13 +26,22 @@ const SignUpPage = () => {
     return true;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const success = validateForm();
 
-    if (success === true) signup(formData);
-    
+    if (success === true) {
+      try {
+        const res = await signup(formData);
+        // if server requested OTP verification for signup, redirect to verify page
+        if (res?.otpSent) {
+          navigate('/signup-verify');
+        }
+      } catch (error) {
+        // signup errors already shown via toast
+      }
+    }
   };
 
   return (

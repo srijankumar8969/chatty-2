@@ -11,11 +11,30 @@ const LoginPage = () => {
     password: "",
   });
 
-  const { login, isLoggingIn } = useAuthStore();
+  const { login, isLoggingIn, pendingOtpEmail, verifyOtp, isVerifyingOtp, resendOtp, isResendingOtp } = useAuthStore();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     login(formData);
+  };
+
+  const [otpValue, setOtpValue] = useState("");
+
+  const handleVerifyOtp = async () => {
+    if (!otpValue.trim()) return;
+    try {
+      await verifyOtp({ email: pendingOtpEmail, otp: otpValue });
+    } catch (err) {
+      // error handled in store
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      await resendOtp(pendingOtpEmail);
+    } catch (err) {
+      // error handled in store
+    }
   };
 
   return (
@@ -38,7 +57,34 @@ const LoginPage = () => {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">{
+            pendingOtpEmail ? (
+              <div className="p-4 border rounded-lg space-y-3 bg-base-200">
+                <p className="text-sm">An OTP has been sent to <strong>{pendingOtpEmail}</strong>. Enter it below to finish signing in.</p>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">OTP</span>
+                  </label>
+                  <input
+                    value={otpValue}
+                    onChange={(e) => setOtpValue(e.target.value)}
+                    type="text"
+                    className="input input-bordered w-full"
+                    placeholder="6-digit code"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button type="button" onClick={handleVerifyOtp} className="btn btn-primary" disabled={isVerifyingOtp}>
+                    {isVerifyingOtp ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                  <button type="button" onClick={handleResend} className="btn btn-ghost" disabled={isResendingOtp}>
+                    {isResendingOtp ? 'Resending...' : 'Resend OTP'}
+                  </button>
+                </div>
+              </div>
+            ) : null
+          }
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Email</span>
