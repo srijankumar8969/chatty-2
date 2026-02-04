@@ -7,19 +7,16 @@ import { sendMail } from "../lib/mailer.js";
 
 
 export const signup = async (req, res) => {
-    // console.log('In signup controller', req.body);
     const { email, password, userName } = req.body;
     try {
 
         if (!email || !password || !userName) {
             return res.status(400).send('All fields are required');
         }
-        //validate password
         if (password.length < 6) {
             return res.status(400).send('Password must be atleast 6 characters');
         }
 
-        //validate email
         if (!email.includes('@') || !email.includes('.')) {
             return res.status(400).send('Invalid Email');
         };
@@ -27,6 +24,11 @@ export const signup = async (req, res) => {
         const user = await User.findOne({ email });
         if (user) {
             return res.status(400).send('Email already exists');
+        }
+
+        const existingUsername = await User.findOne({ userName });
+        if (existingUsername) {
+            return res.status(400).send('Username already exists');
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -43,13 +45,13 @@ export const signup = async (req, res) => {
 
         await newUser.save();
 
-        // Generate OTP for signup verification
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpSalt = await bcrypt.genSalt(10);
         const otpHash = await bcrypt.hash(otp, otpSalt);
 
         newUser.otp = otpHash;
-        newUser.otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+        newUser.otpExpires = Date.now() + 5 * 60 * 1000; 
+        newUser.verificationExpiresAt = Date.now() + 5 * 60 * 1000; 
         await newUser.save();
 
         try {
@@ -61,15 +63,12 @@ export const signup = async (req, res) => {
             });
         } catch (err) {
             console.log('Error sending signup OTP email', err);
-            // In development allow testing without SMTP by logging/returning the OTP
             if (process.env.NODE_ENV !== 'production') {
                 console.log(`Dev OTP for ${newUser.email}: ${otp}`);
                 return res.status(201).json({ otpSent: true, email: newUser.email, message: 'OTP logged (dev)', otpDev: otp });
             }
             return res.status(500).send('Failed to send OTP email');
         }
-
-        // Return response indicating OTP step required. Do NOT create session yet.
         res.status(201).json({ otpSent: true, email: newUser.email, message: 'OTP sent to your email' });
     } catch (error) {
         console.log('Error in signup controller', error.message);
@@ -84,22 +83,24 @@ export const login = async (req, res) => {
         if (!user) {
             return res.status(400).send(`User not registered`);
         }
+
+        if (!user.isVerified) {
+            return res.status(400).send('Account exists but email is not verified. Please verify your email.');
+        }
         const passwordCheck = await bcrypt.compare(password, user.password);
 
         if (!passwordCheck) {
             return res.status(400).send('Invalid credentials');
         }
 
-        // Generate a 6-digit OTP and store hash + expiry
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const salt = await bcrypt.genSalt(10);
         const otpHash = await bcrypt.hash(otp, salt);
 
         user.otp = otpHash;
-        user.otpExpires = Date.now() + 5 * 60 * 1000; // OTP valid for 5 minutes
+        user.otpExpires = Date.now() + 5 * 60 * 1000;
         await user.save();
 
-        // send OTP to user's email
         try {
             await sendMail({
                 to: user.email,
@@ -116,7 +117,6 @@ export const login = async (req, res) => {
             return res.status(500).send('Failed to send OTP email');
         }
 
-        // Don't create a session yet. Client must verify OTP.
         res.status(200).json({ otpSent: true, message: 'OTP sent to registered email' });
 
     } catch (error) {
@@ -183,9 +183,10 @@ export const verifyOtp = async (req, res) => {
             return res.status(400).send('Wrong OTP');
         }
 
-        // OTP correct - clear otp fields and generate session
         user.otp = null;
         user.otpExpires = null;
+        user.isVerified = true;
+        user.verificationExpiresAt = undefined; 
         await user.save();
 
         generateToken(user._id, res);
@@ -212,6 +213,7 @@ export const resendOtp = async (req, res) => {
 
         user.otp = otpHash;
         user.otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+        user.verificationExpiresAt = Date.now() + 5 * 60 * 1000; // Extend auto-delete timer
         await user.save();
 
         try {

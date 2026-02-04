@@ -28,15 +28,15 @@ app.use(
   })
 );
 
-app.use("/api/auth", authRoutes);
-app.use("/api/messages", messageRoutes);
+import { apiLimiter } from "./middleware/rateLimit.middleware.js";
 
-// Handle payload-too-large errors from body parsing (e.g., base64 image uploads)
+app.use("/api/auth", authRoutes);
+app.use("/api/messages", apiLimiter, messageRoutes);
+
 app.use((err, req, res, next) => {
   if (err && (err.type === 'entity.too.large' || err.status === 413)) {
     return res.status(413).json({ message: 'Payload too large. Upload a smaller image or increase server JSON limit.' });
   }
-  // forward other errors
   next(err);
 });
 

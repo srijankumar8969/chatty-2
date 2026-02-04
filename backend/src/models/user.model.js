@@ -13,13 +13,13 @@ const mongoSchema = new mongoose.Schema({
     },
     userName: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     profilePic: {
         type: String,
         default: ""
     },
-    // OTP fields for login verification
     otp: {
         type: String,
         default: null
@@ -27,11 +27,20 @@ const mongoSchema = new mongoose.Schema({
     otpExpires: {
         type: Date,
         default: null
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationExpiresAt: {
+        type: Date,
+        default: Date.now,
+        index: { expires: '0s' } 
     }
 },
     {
-        timestamps: true //timestamps are used to store the time when the document was created and updated and its default value is false
+        timestamps: true 
     }
 );
-const User = mongoose.model('User', mongoSchema);//model is used to create a collection in the database and in this case name of the collection is User and it follows the schema mongoSchema. The collection name is always in singular form and the model name is always in capital form. The const user is used to perform the CRUD operations on the collection
+const User = mongoose.model('User', mongoSchema);
 export default User;
