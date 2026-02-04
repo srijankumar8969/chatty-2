@@ -17,10 +17,10 @@ const __dirname = path.resolve();
 
 app.use(cookieParser());
 
-// Increase JSON body size to allow base64 image uploads from the client
 app.use(express.json({
   limit: '50mb'
 }));
+
 app.use(
   cors({
     origin: "http://localhost:5173",
