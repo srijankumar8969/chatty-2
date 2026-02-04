@@ -25,7 +25,6 @@ const LoginPage = () => {
     try {
       await verifyOtp({ email: pendingOtpEmail, otp: otpValue });
     } catch (err) {
-      // error handled in store
     }
   };
 
