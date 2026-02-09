@@ -22,6 +22,7 @@ A simple real-time chat application with authentication, profile management, and
 
 ## Features
 - Email/password authentication (JWT cookie-based)
+- OTP Email Verification (Resend)
 - Profile picture upload (Cloudinary)
 - Realtime messaging (Socket.io)
 - Minimal, responsive UI built with Tailwind/DaisyUI
@@ -53,6 +54,7 @@ TOKEN_SECRETS=your_jwt_secret
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
+RESEND_API_KEY=re_123456789
 NODE_ENV=development
 ```
 
