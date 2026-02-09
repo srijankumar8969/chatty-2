@@ -48,7 +48,7 @@ A simple real-time chat application with authentication, profile management, and
 Create `backend/.env` with the following:
 
 ```
-PORT=5001
+PORT=5000
 MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.example.mongodb.net/dbname
 TOKEN_SECRETS=your_jwt_secret
 CLOUDINARY_CLOUD_NAME=your_cloud_name
