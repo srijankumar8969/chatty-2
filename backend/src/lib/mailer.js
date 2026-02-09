@@ -1,22 +1,19 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendMail = async ({ to, subject, html, text }) => {
-    const info = await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to,
-        subject,
-        text,
-        html,
-    });
-    return info;
+    try {
+        const data = await resend.emails.send({
+            from: 'Chatty <onboarding@resend.dev>', // Update this with your verified domain if available
+            to,
+            subject,
+            html: html || text, // Resend prefers HTML, fallback to text if HTML not provided. 
+        });
+
+        return data;
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw error;
+    }
 };
